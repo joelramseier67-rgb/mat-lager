@@ -1,0 +1,19 @@
+{
+  "name": "MAT.LAGER",
+  "short_name": "MAT.LAGER",
+  "description": "Digitale Materiallager-Verwaltung mit NFC- und QR-Scan",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#1b1d1f",
+  "theme_color": "#1b1d1f",
+  "orientation": "portrait",
+  "icons": [
+    {
+      "src": "icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
