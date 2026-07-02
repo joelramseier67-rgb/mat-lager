@@ -384,7 +384,68 @@
   .manual-entry{width:100%;display:flex;gap:8px;}
   .manual-entry input{flex:1;}
 
-  #qr-video{width:100%;border-radius:10px;background:#000;margin-top:6px;}
+  .qr-scan-wrap{
+    position:relative;
+    width:100%;
+    margin-top:10px;
+    border-radius:14px;
+    overflow:hidden;
+    background:#000;
+    display:none;
+  }
+  #qr-video{
+    width:100%;
+    height:320px;
+    object-fit:cover;
+    display:block;
+  }
+  .qr-frame{
+    position:absolute;
+    top:50%;left:50%;
+    transform:translate(-50%,-50%);
+    width:72%;
+    aspect-ratio:1/1;
+    max-width:230px;
+    pointer-events:none;
+  }
+  .qr-frame::before{
+    content:'';
+    position:absolute;inset:0;
+    box-shadow:0 0 0 2000px rgba(0,0,0,0.45);
+    border-radius:14px;
+  }
+  .qr-corner{
+    position:absolute;
+    width:32px;height:32px;
+    border:3px solid var(--accent);
+  }
+  .qr-corner.tl{top:-2px;left:-2px;border-right:none;border-bottom:none;border-radius:10px 0 0 0;}
+  .qr-corner.tr{top:-2px;right:-2px;border-left:none;border-bottom:none;border-radius:0 10px 0 0;}
+  .qr-corner.bl{bottom:-2px;left:-2px;border-right:none;border-top:none;border-radius:0 0 0 10px;}
+  .qr-corner.br{bottom:-2px;right:-2px;border-left:none;border-top:none;border-radius:0 0 10px 0;}
+  .qr-scan-line{
+    position:absolute;
+    left:6%;right:6%;
+    height:2px;
+    background:var(--accent);
+    box-shadow:0 0 8px var(--accent);
+    animation:qrscan 2.2s ease-in-out infinite;
+  }
+  @keyframes qrscan{
+    0%{top:8%;}
+    50%{top:88%;}
+    100%{top:8%;}
+  }
+  .qr-scan-hint{
+    position:absolute;
+    bottom:14px;left:0;right:0;
+    text-align:center;
+    color:#fff;
+    font-size:12px;
+    font-family:var(--mono);
+    letter-spacing:0.5px;
+    text-shadow:0 1px 3px rgba(0,0,0,0.6);
+  }
 
   .movement-row{
     display:flex;align-items:center;gap:12px;
@@ -1229,7 +1290,17 @@ function renderScan(){
 
       <div class="divider-or">oder</div>
       <button class="btn btn-secondary btn-block" id="qrBtn">QR-Code scannen</button>
-      <video id="qr-video" style="display:none;" playsinline muted></video>
+      <div class="qr-scan-wrap" id="qr-scan-wrap">
+        <video id="qr-video" playsinline muted></video>
+        <div class="qr-frame">
+          <div class="qr-corner tl"></div>
+          <div class="qr-corner tr"></div>
+          <div class="qr-corner bl"></div>
+          <div class="qr-corner br"></div>
+          <div class="qr-scan-line"></div>
+        </div>
+        <div class="qr-scan-hint">Code im Rahmen positionieren</div>
+      </div>
 
       <div class="divider-or">oder</div>
       <div class="manual-entry">
@@ -1288,7 +1359,8 @@ async function startQrScan(){
     return;
   }
   const video = $('#qr-video');
-  video.style.display = 'block';
+  const wrap = $('#qr-scan-wrap');
+  wrap.style.display = 'block';
   try{
     qrScanStream = await navigator.mediaDevices.getUserMedia({
       video: {
@@ -1326,7 +1398,7 @@ async function startQrScan(){
     requestAnimationFrame(tick);
   }catch(e){
     toast('Kamerazugriff nicht möglich');
-    video.style.display = 'none';
+    wrap.style.display = 'none';
   }
 }
 function stopQrScan(){
@@ -1334,8 +1406,8 @@ function stopQrScan(){
     qrScanStream.getTracks().forEach(t=>t.stop());
     qrScanStream = null;
   }
-  const video = $('#qr-video');
-  if(video) video.style.display = 'none';
+  const wrap = $('#qr-scan-wrap');
+  if(wrap) wrap.style.display = 'none';
 }
 
 function lookupAndOpen(idOrText){
