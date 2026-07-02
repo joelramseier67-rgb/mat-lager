@@ -897,12 +897,26 @@ function renderHistory(){
               ${m.komm ? `<span class="m-chip">Komm. ${escapeHtml(m.komm)}</span>` : ''}
             </div>
           </div>
-          <div class="m-qty ${m.type}">${m.type==='in'?'+':'−'}${m.qty}</div>
+          <div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px;">
+            <div class="m-qty ${m.type}">${m.type==='in'?'+':'−'}${m.qty}</div>
+            ${isAdmin ? `<button class="btn btn-secondary" data-delmove="${m.id}" style="padding:2px 8px;font-size:10px;color:var(--danger);">Löschen</button>` : ''}
+          </div>
         </div>`;
       });
       html += '</div>';
     }
     $('#historyList').innerHTML = html;
+    main.querySelectorAll('[data-delmove]').forEach(btn=>{
+      btn.onclick = async ()=>{
+        try{
+          await deleteDoc(doc(db, 'movements', btn.dataset.delmove));
+          toast('Eintrag gelöscht');
+        }catch(e){
+          toast('Löschen fehlgeschlagen');
+          console.error(e);
+        }
+      };
+    });
   };
   $('#historySearch').addEventListener('input', list);
   list();
@@ -989,7 +1003,7 @@ function openAddWishSheet(){
       closeSheet();
       toast('Bestellung hinzugefügt');
     }catch(e){
-      toast('Speichern fehlgeschlagen');
+      toast('Speichern fehlgeschlagen: ' + (e.code || e.message || 'unbekannter Fehler'));
       console.error(e);
       btn.disabled = false; btn.textContent = 'Hinzufügen';
     }
@@ -1402,6 +1416,34 @@ function openPrintBlankTagsSheet(){
     };
   };
 }
+function categorySelectHtml(selectedValue){
+  const categories = [...new Set(articles.map(a => a.category || 'Sonstiges'))].sort();
+  const isKnown = selectedValue && categories.includes(selectedValue);
+  return `
+    <select id="f-cat">
+      <option value="" ${!selectedValue ? 'selected' : ''} disabled>Kategorie wählen…</option>
+      ${categories.map(c => `<option value="${escapeHtml(c)}" ${selectedValue===c ? 'selected':''}>${escapeHtml(c)}</option>`).join('')}
+      <option value="__new__" ${selectedValue && !isKnown ? 'selected' : ''}>+ Neue Kategorie…</option>
+    </select>
+    <input type="text" id="f-cat-new" placeholder="Neue Kategorie eingeben" style="margin-top:8px;display:${selectedValue && !isKnown ? 'block' : 'none'};" value="${selectedValue && !isKnown ? escapeHtml(selectedValue) : ''}">
+  `;
+}
+function bindCategorySelect(sheet){
+  const sel = sheet.querySelector('#f-cat');
+  const newInput = sheet.querySelector('#f-cat-new');
+  sel.addEventListener('change', ()=>{
+    newInput.style.display = sel.value === '__new__' ? 'block' : 'none';
+    if(sel.value === '__new__') newInput.focus();
+  });
+}
+function getCategoryValue(sheet){
+  const sel = sheet.querySelector('#f-cat');
+  if(sel.value === '__new__'){
+    return sheet.querySelector('#f-cat-new').value.trim();
+  }
+  return sel.value;
+}
+
 function openAddArticleSheet(presetId){
   if(!isAdmin){ toast('Nur Admins können Artikel anlegen'); return; }
   const sheet = buildSheet(`
@@ -1410,7 +1452,9 @@ function openAddArticleSheet(presetId){
     <label>Name</label>
     <input type="text" id="f-name" placeholder="z. B. Schrauben M6x30">
     <label>Kategorie</label>
-    <input type="text" id="f-cat" placeholder="z. B. Schrauben">
+    ${categorySelectHtml('')}
+    <label>Art. Nr. Händler <span style="text-transform:none;letter-spacing:0;">(optional)</span></label>
+    <input type="text" id="f-vendor" placeholder="z. B. 123456-A">
     <label>Standort</label>
     <input type="text" id="f-loc" placeholder="z. B. Regal A2">
     <label>Startbestand</label>
@@ -1422,15 +1466,17 @@ function openAddArticleSheet(presetId){
       <button class="btn btn-primary btn-block" id="saveArticle">Anlegen</button>
     </div>
   `);
+  bindCategorySelect(sheet);
   sheet.querySelector('#saveArticle').onclick = async ()=>{
     const btn = sheet.querySelector('#saveArticle');
     const name = sheet.querySelector('#f-name').value.trim();
     if(!name){ toast('Bitte einen Namen eingeben'); return; }
-    const category = sheet.querySelector('#f-cat').value.trim() || 'Sonstiges';
+    const category = getCategoryValue(sheet) || 'Sonstiges';
     const newId = presetId || genArticleId(category);
     const article = {
       name,
       category,
+      vendorArticleNumber: sheet.querySelector('#f-vendor').value.trim(),
       location: sheet.querySelector('#f-loc').value.trim(),
       stock: parseInt(sheet.querySelector('#f-stock').value)||0,
       minStock: parseInt(sheet.querySelector('#f-min').value)||0,
@@ -1470,6 +1516,7 @@ function openArticleDetail(id, justCreated){
       <div><div class="dlabel">Mindestbestand</div><div class="dval">${a.minStock}</div></div>
       <div><div class="dlabel">Standort</div><div class="dval">${escapeHtml(a.location||'—')}</div></div>
       <div><div class="dlabel">Kategorie</div><div class="dval">${escapeHtml(a.category||'—')}</div></div>
+      <div style="grid-column:1 / -1;"><div class="dlabel">Art. Nr. Händler</div><div class="dval">${escapeHtml(a.vendorArticleNumber||'—')}</div></div>
     </div>
     <label style="text-align:center;">Buchung</label>
     <div class="qty-stepper">
@@ -1565,7 +1612,9 @@ function openEditArticleSheet(id){
     <label>Name</label>
     <input type="text" id="f-name" value="${escapeHtml(a.name)}">
     <label>Kategorie</label>
-    <input type="text" id="f-cat" value="${escapeHtml(a.category||'')}">
+    ${categorySelectHtml(a.category||'')}
+    <label>Art. Nr. Händler <span style="text-transform:none;letter-spacing:0;">(optional)</span></label>
+    <input type="text" id="f-vendor" value="${escapeHtml(a.vendorArticleNumber||'')}" placeholder="z. B. 123456-A">
     <label>Standort</label>
     <input type="text" id="f-loc" value="${escapeHtml(a.location||'')}">
     <label>Bestand</label>
@@ -1580,6 +1629,7 @@ function openEditArticleSheet(id){
       <button class="btn btn-primary btn-block" id="saveEdit">Speichern</button>
     </div>
   `);
+  bindCategorySelect(sheet);
   sheet.querySelector('#saveEdit').onclick = async ()=>{
     const btn = sheet.querySelector('#saveEdit');
     const name = sheet.querySelector('#f-name').value.trim();
@@ -1588,7 +1638,8 @@ function openEditArticleSheet(id){
     try{
       await updateDoc(doc(db, 'articles', a.id), {
         name,
-        category: sheet.querySelector('#f-cat').value.trim() || 'Sonstiges',
+        category: getCategoryValue(sheet) || 'Sonstiges',
+        vendorArticleNumber: sheet.querySelector('#f-vendor').value.trim(),
         location: sheet.querySelector('#f-loc').value.trim(),
         stock: parseInt(sheet.querySelector('#f-stock').value)||0,
         minStock: parseInt(sheet.querySelector('#f-min').value)||0
