@@ -1,5 +1,5 @@
-const CACHE = 'mat-lager-v1';
-const SHELL = ['./index.html', './manifest.json', './icon.svg'];
+const CACHE = 'mat-lager-v2';
+const SHELL = ['./index.html', './manifest.json', './icon.png', './logo-mark.png'];
 
 self.addEventListener('install', event => {
   event.waitUntil(

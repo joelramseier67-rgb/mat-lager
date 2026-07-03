@@ -1,18 +1,18 @@
 {
-  "name": "MAT.LAGER",
-  "short_name": "MAT.LAGER",
+  "name": "FR Metallbau AG – Materiallager",
+  "short_name": "Mat.Lager",
   "description": "Digitale Materiallager-Verwaltung mit NFC- und QR-Scan",
   "start_url": "./index.html",
   "scope": "./",
   "display": "standalone",
-  "background_color": "#1b1d1f",
-  "theme_color": "#1b1d1f",
+  "background_color": "#f3f5f7",
+  "theme_color": "#2f6690",
   "orientation": "portrait",
   "icons": [
     {
-      "src": "icon.svg",
-      "sizes": "any",
-      "type": "image/svg+xml",
+      "src": "icon.png",
+      "sizes": "512x512",
+      "type": "image/png",
       "purpose": "any maskable"
     }
   ]
