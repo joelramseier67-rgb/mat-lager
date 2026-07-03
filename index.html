@@ -1226,28 +1226,45 @@ function openRemoveUserSheet(uid){
   const sheet = buildSheet(`
     <div class="sheet-head"><h3>Nutzer entfernen</h3><button class="x" data-close>×</button></div>
     <div style="font-size:12.5px;color:var(--text-muted);margin-bottom:6px;">
-      "${escapeHtml(name)}" verliert sofort alle Rechte und wird beim nächsten Anmeldeversuch automatisch abgemeldet. Du kannst den Zugang hier jederzeit wieder freischalten.
-    </div>
-    <div style="font-size:11.5px;color:var(--text-muted);margin-bottom:6px;">
-      Hinweis: Das Login-Konto selbst bleibt in Firebase Authentication bestehen. Für eine endgültige Löschung: Firebase Console → Authentication → Nutzer → Konto löschen.
+      <strong>Sperren:</strong> "${escapeHtml(name)}" verliert sofort alle Rechte und wird beim nächsten Anmeldeversuch automatisch abgemeldet. Bleibt in der Liste sichtbar (mit "Gesperrt"-Abzeichen), lässt sich jederzeit wieder freischalten. Das Login-Konto selbst bleibt in Firebase Authentication bestehen.
     </div>
     <div class="btn-row">
       <button class="btn btn-secondary btn-block" data-close>Abbrechen</button>
-      <button class="btn btn-danger btn-block" id="confirmRemoveUser">Entfernen</button>
+      <button class="btn btn-danger btn-block" id="confirmRemoveUser">Sperren</button>
+    </div>
+    <div style="font-size:12.5px;color:var(--text-muted);margin-top:18px;padding-top:14px;border-top:1px solid var(--border);">
+      <strong>Datensatz endgültig löschen:</strong> Entfernt den Eintrag komplett aus dieser Liste. Nur sinnvoll, wenn du das zugehörige Login-Konto bereits in Firebase Authentication gelöscht hast – sonst kann sich die Person weiterhin anmelden (nur eben ohne Eintrag hier).
+    </div>
+    <div class="btn-row">
+      <button class="btn btn-secondary btn-block" id="confirmDeleteUser">Datensatz endgültig löschen</button>
     </div>
   `);
   sheet.querySelector('#confirmRemoveUser').onclick = async ()=>{
     const btn = sheet.querySelector('#confirmRemoveUser');
-    btn.disabled = true; btn.textContent = 'Entferne…';
+    btn.disabled = true; btn.textContent = 'Sperre…';
     try{
       await deleteDoc(doc(db, 'roles', uid)).catch(()=>{});
       await setDoc(doc(db, 'profiles', uid), { blocked: true }, { merge: true });
       closeSheet();
-      toast('Nutzer "' + name + '" entfernt');
+      toast('Nutzer "' + name + '" gesperrt');
     }catch(e){
-      toast('Entfernen fehlgeschlagen');
+      toast('Sperren fehlgeschlagen');
       console.error(e);
-      btn.disabled = false; btn.textContent = 'Entfernen';
+      btn.disabled = false; btn.textContent = 'Sperren';
+    }
+  };
+  sheet.querySelector('#confirmDeleteUser').onclick = async ()=>{
+    const btn = sheet.querySelector('#confirmDeleteUser');
+    btn.disabled = true; btn.textContent = 'Lösche…';
+    try{
+      await deleteDoc(doc(db, 'roles', uid)).catch(()=>{});
+      await deleteDoc(doc(db, 'profiles', uid));
+      closeSheet();
+      toast('Datensatz "' + name + '" gelöscht');
+    }catch(e){
+      toast('Löschen fehlgeschlagen');
+      console.error(e);
+      btn.disabled = false; btn.textContent = 'Datensatz endgültig löschen';
     }
   };
 }
