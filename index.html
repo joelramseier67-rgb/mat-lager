@@ -873,6 +873,7 @@ function renderDashboard(){
 function tagCardHtml(a){
   return `
   <div class="tag-card ${isLow(a)?'low':''}" data-id="${a.id}">
+    ${a.imageUrl ? `<img src="${a.imageUrl}" style="width:42px;height:42px;object-fit:cover;border-radius:6px;flex-shrink:0;">` : ''}
     <div class="info">
       <div class="name">${escapeHtml(a.name)}</div>
       <div class="meta">${a.id} · ${escapeHtml(a.location||'—')}</div>
@@ -1488,6 +1489,47 @@ function openPrintBlankTagsSheet(){
     };
   };
 }
+// Verkleinert und komprimiert ein Foto direkt im Browser und wandelt es in einen
+// Data-URL-String um, der zusammen mit dem Artikel in Firestore gespeichert wird.
+// So wird kein separater (kostenpflichtiger) Speicherdienst benötigt.
+async function resizeImageToDataUrl(file, maxDim, quality){
+  maxDim = maxDim || 480;
+  quality = quality || 0.6;
+  const bitmap = await createImageBitmap(file);
+  let width = bitmap.width, height = bitmap.height;
+  if(width > height && width > maxDim){ height = Math.round(height * maxDim / width); width = maxDim; }
+  else if(height >= width && height > maxDim){ width = Math.round(width * maxDim / height); height = maxDim; }
+  const canvas = document.createElement('canvas');
+  canvas.width = width; canvas.height = height;
+  canvas.getContext('2d').drawImage(bitmap, 0, 0, width, height);
+  let q = quality;
+  let dataUrl = canvas.toDataURL('image/jpeg', q);
+  // Falls das Bild trotz Verkleinerung noch gross ist, Qualität weiter reduzieren
+  // (Firestore-Dokumente dürfen max. ~1 MB gross sein).
+  while(dataUrl.length > 650000 && q > 0.25){
+    q -= 0.1;
+    dataUrl = canvas.toDataURL('image/jpeg', q);
+  }
+  if(dataUrl.length > 900000){
+    throw new Error('Bild ist auch komprimiert zu gross – bitte ein anderes Foto versuchen.');
+  }
+  return dataUrl;
+}
+async function uploadArticleImage(articleId, file){
+  return await resizeImageToDataUrl(file);
+}
+function bindImagePreview(sheet){
+  const input = sheet.querySelector('#f-image');
+  const preview = sheet.querySelector('#f-image-preview');
+  if(!input) return;
+  input.addEventListener('change', ()=>{
+    const file = input.files[0];
+    if(!file){ return; }
+    const url = URL.createObjectURL(file);
+    preview.innerHTML = `<img src="${url}" style="width:100%;max-height:180px;object-fit:cover;border-radius:8px;margin-top:8px;">`;
+  });
+}
+
 function categorySelectHtml(selectedValue){
   const categories = [...new Set(articles.map(a => a.category || 'Sonstiges'))].sort();
   const isKnown = selectedValue && categories.includes(selectedValue);
@@ -1533,12 +1575,16 @@ function openAddArticleSheet(presetId){
     <input type="number" id="f-stock" value="0" min="0">
     <label>Mindestbestand</label>
     <input type="number" id="f-min" value="10" min="0">
+    <label>Bild <span style="text-transform:none;letter-spacing:0;">(optional)</span></label>
+    <input type="file" id="f-image" accept="image/*">
+    <div id="f-image-preview"></div>
     <div class="btn-row">
       <button class="btn btn-secondary btn-block" data-close>Abbrechen</button>
       <button class="btn btn-primary btn-block" id="saveArticle">Anlegen</button>
     </div>
   `);
   bindCategorySelect(sheet);
+  bindImagePreview(sheet);
   sheet.querySelector('#saveArticle').onclick = async ()=>{
     const btn = sheet.querySelector('#saveArticle');
     const name = sheet.querySelector('#f-name').value.trim();
@@ -1556,6 +1602,11 @@ function openAddArticleSheet(presetId){
     };
     btn.disabled = true; btn.textContent = 'Speichere…';
     try{
+      const imageFile = sheet.querySelector('#f-image').files[0];
+      if(imageFile){
+        btn.textContent = 'Lade Bild hoch…';
+        article.imageUrl = await uploadArticleImage(newId, imageFile);
+      }
       await setDoc(doc(db, 'articles', newId), article);
       closeSheet();
       openArticleDetail(newId, true);
@@ -1573,6 +1624,7 @@ function openArticleDetail(id, justCreated){
   const sheet = buildSheet(`
     <div class="sheet-head"><h3>${escapeHtml(a.name)}</h3><button class="x" data-close>×</button></div>
     <div class="stencil-id">TAG · ${a.id}</div>
+    ${a.imageUrl ? `<img src="${a.imageUrl}" style="width:100%;max-height:220px;object-fit:cover;border-radius:10px;margin-bottom:12px;">` : ''}
     ${justCreated ? `<div style="font-size:12.5px;color:var(--text-muted);margin-bottom:10px;">Artikel angelegt. Jetzt einen leeren NFC-Tag beschreiben oder den QR-Code ausdrucken und am Lagerplatz anbringen.</div>` : ''}
     <div style="display:flex;gap:16px;align-items:flex-start;">
       <div>
@@ -1693,6 +1745,13 @@ function openEditArticleSheet(id){
     <input type="number" id="f-stock" value="${a.stock}" min="0">
     <label>Mindestbestand</label>
     <input type="number" id="f-min" value="${a.minStock}" min="0">
+    <label>Bild <span style="text-transform:none;letter-spacing:0;">(optional)</span></label>
+    ${a.imageUrl ? `<div id="f-image-preview"><img src="${a.imageUrl}" style="width:100%;max-height:180px;object-fit:cover;border-radius:8px;"></div>
+    <label style="display:flex;align-items:center;gap:8px;text-transform:none;font-size:12.5px;color:var(--text);margin-top:6px;">
+      <input type="checkbox" id="f-image-remove" style="width:auto;"> Bild entfernen
+    </label>` : '<div id="f-image-preview"></div>'}
+    <input type="file" id="f-image" accept="image/*" style="margin-top:6px;">
+    <div style="font-size:11px;color:var(--text-muted);margin-top:4px;">Neues Bild hochladen ersetzt automatisch das bestehende.</div>
     <div style="font-size:11.5px;color:var(--text-muted);margin-top:10px;">
       Hinweis: Eine manuelle Bestandsänderung hier wird nicht als Ein-/Auslagerung im Verlauf protokolliert.
     </div>
@@ -1702,20 +1761,30 @@ function openEditArticleSheet(id){
     </div>
   `);
   bindCategorySelect(sheet);
+  bindImagePreview(sheet);
   sheet.querySelector('#saveEdit').onclick = async ()=>{
     const btn = sheet.querySelector('#saveEdit');
     const name = sheet.querySelector('#f-name').value.trim();
     if(!name){ toast('Bitte einen Namen eingeben'); return; }
     btn.disabled = true; btn.textContent = 'Speichere…';
     try{
-      await updateDoc(doc(db, 'articles', a.id), {
+      const updates = {
         name,
         category: getCategoryValue(sheet) || 'Sonstiges',
         vendorArticleNumber: sheet.querySelector('#f-vendor').value.trim(),
         location: sheet.querySelector('#f-loc').value.trim(),
         stock: parseInt(sheet.querySelector('#f-stock').value)||0,
         minStock: parseInt(sheet.querySelector('#f-min').value)||0
-      });
+      };
+      const imageFile = sheet.querySelector('#f-image').files[0];
+      const removeCheckbox = sheet.querySelector('#f-image-remove');
+      if(imageFile){
+        btn.textContent = 'Lade Bild hoch…';
+        updates.imageUrl = await uploadArticleImage(a.id, imageFile);
+      } else if(removeCheckbox && removeCheckbox.checked){
+        updates.imageUrl = '';
+      }
+      await updateDoc(doc(db, 'articles', a.id), updates);
       closeSheet();
       toast('Artikel aktualisiert');
     }catch(e){
