@@ -1290,7 +1290,8 @@ async function sendLowStockEmail(article, newStock){
       article_id: article.id,
       stock: newStock,
       min_stock: article.minStock,
-      location: article.location || '—'
+      location: article.location || '—',
+      vendor_number: article.vendorArticleNumber || '—'
     }, { publicKey: notifSettings.publicKey });
     toast('Benachrichtigung an ' + notifSettings.adminEmail + ' gesendet');
   }catch(e){
