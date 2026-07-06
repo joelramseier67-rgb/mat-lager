@@ -894,7 +894,7 @@ function bindTagCards(){
 
 function renderArticles(){
   const categories = [...new Set(articles.map(a => a.category || 'Sonstiges'))].sort();
-  let html = `<input class="search-bar" id="searchInput" type="text" placeholder="Artikel suchen…">`;
+  let html = `<input class="search-bar" id="searchInput" type="text" placeholder="Suche nach Name, ID oder Art. Nr. …">`;
   if(isAdmin){
     html += `<button class="btn btn-secondary btn-block" id="importExcelBtn" style="margin-bottom:14px;">Artikel aus Excel importieren</button>`;
   }
@@ -913,7 +913,7 @@ function renderArticles(){
   const list = () => {
     const q = ($('#searchInput').value||'').toLowerCase();
     const filtered = articles.filter(a => {
-      const matchesQuery = a.name.toLowerCase().includes(q) || a.id.toLowerCase().includes(q);
+      const matchesQuery = a.name.toLowerCase().includes(q) || a.id.toLowerCase().includes(q) || (a.vendorArticleNumber||'').toLowerCase().includes(q);
       const matchesCat = activeCat === '__all' || (a.category || 'Sonstiges') === activeCat;
       return matchesQuery && matchesCat;
     });
@@ -1820,6 +1820,7 @@ function openArticleDetail(id, justCreated){
       </div>
       <div style="flex:1;">
         <button class="btn btn-secondary btn-block" id="writeNfcBtn" style="margin-bottom:8px;">Tag beschreiben (NFC)</button>
+        <button class="btn btn-secondary btn-block" id="printQrBtn" style="margin-bottom:8px;">QR-Code drucken</button>
         <div style="font-size:11px;color:var(--text-muted);">Leeren Tag ans Handy halten, ID wird geschrieben.</div>
       </div>
     </div>
@@ -1902,6 +1903,10 @@ function openArticleDetail(id, justCreated){
     }catch(e){
       toast('Schreiben fehlgeschlagen oder abgebrochen');
     }
+  };
+  sheet.querySelector('#printQrBtn').onclick = ()=>{
+    closeSheet();
+    openPrintImportedTagsSheet([{ id: a.id, data: { name: a.name } }]);
   };
 
   try{
