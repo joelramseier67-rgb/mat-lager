@@ -1487,6 +1487,7 @@ const IMPORT_COLUMN_ALIASES = {
   name: ['name', 'artikelname', 'bezeichnung', 'artikel'],
   category: ['kategorie', 'category', 'gruppe'],
   vendorArticleNumber: ['artnr', 'artnrhaendler', 'artikelnummer', 'haendlernummer', 'lieferantennummer', 'vendornumber', 'artnrhändler'],
+  price: ['preis', 'price', 'chf', 'verkaufspreis', 'einkaufspreis'],
   location: ['standort', 'lagerort', 'ort', 'location', 'lager'],
   stock: ['bestand', 'menge', 'anzahl', 'stock', 'startbestand'],
   minStock: ['mindestbestand', 'minbestand', 'min', 'minstock']
@@ -1514,7 +1515,7 @@ function openImportExcelSheet(){
   const sheet = buildSheet(`
     <div class="sheet-head"><h3>Artikel aus Excel importieren</h3><button class="x" data-close>×</button></div>
     <div style="font-size:12.5px;color:var(--text-muted);margin-bottom:10px;">
-      Erste Zeile muss Spaltenüberschriften enthalten. Erkannte Spalten (Gross-/Kleinschreibung egal): <strong>Name</strong> (Pflicht), Kategorie, Art. Nr. Händler, Standort, Bestand, Mindestbestand.
+      Erste Zeile muss Spaltenüberschriften enthalten. Erkannte Spalten (Gross-/Kleinschreibung egal): <strong>Name</strong> (Pflicht), Kategorie, Art. Nr. Händler, Standort, Bestand, Mindestbestand, Preis.
     </div>
     <input type="file" id="importFile" accept=".xlsx,.xls,.csv">
     <div id="importPreview"></div>
@@ -1557,6 +1558,7 @@ function openImportExcelSheet(){
                 name: String(r.name).trim(),
                 category,
                 vendorArticleNumber: r.vendorArticleNumber ? String(r.vendorArticleNumber).trim() : '',
+                price: r.price ? parseFloat(String(r.price).replace(',', '.')) || 0 : 0,
                 location: r.location ? String(r.location).trim() : '',
                 stock: parseInt(r.stock) || 0,
                 minStock: parseInt(r.minStock) || 0,
@@ -1762,6 +1764,8 @@ function openAddArticleSheet(presetId){
     ${categorySelectHtml('')}
     <label>Art. Nr. Händler <span style="text-transform:none;letter-spacing:0;">(optional)</span></label>
     <input type="text" id="f-vendor" placeholder="z. B. 123456-A">
+    <label>Preis (CHF) <span style="text-transform:none;letter-spacing:0;">(optional)</span></label>
+    <input type="number" id="f-price" placeholder="z. B. 12.50" step="0.01" min="0">
     <label>Standort</label>
     <input type="text" id="f-loc" placeholder="z. B. Regal A2">
     <label>Startbestand</label>
@@ -1795,6 +1799,7 @@ function openAddArticleSheet(presetId){
       name,
       category,
       vendorArticleNumber: sheet.querySelector('#f-vendor').value.trim(),
+      price: parseFloat(sheet.querySelector('#f-price').value) || 0,
       location: sheet.querySelector('#f-loc').value.trim(),
       stock: parseInt(sheet.querySelector('#f-stock').value)||0,
       minStock: parseInt(sheet.querySelector('#f-min').value)||0,
@@ -1841,7 +1846,8 @@ function openArticleDetail(id, justCreated){
       <div><div class="dlabel">Mindestbestand</div><div class="dval">${a.minStock}</div></div>
       <div><div class="dlabel">Standort</div><div class="dval">${escapeHtml(a.location||'—')}</div></div>
       <div><div class="dlabel">Kategorie</div><div class="dval">${escapeHtml(a.category||'—')}</div></div>
-      <div style="grid-column:1 / -1;"><div class="dlabel">Art. Nr. Händler</div><div class="dval">${escapeHtml(a.vendorArticleNumber||'—')}</div></div>
+      <div><div class="dlabel">Art. Nr. Händler</div><div class="dval">${escapeHtml(a.vendorArticleNumber||'—')}</div></div>
+      <div><div class="dlabel">Preis</div><div class="dval">${a.price ? 'CHF ' + a.price.toFixed(2) : '—'}</div></div>
     </div>
     <label style="text-align:center;">Buchung</label>
     <div class="qty-stepper">
@@ -1944,6 +1950,8 @@ function openEditArticleSheet(id){
     ${categorySelectHtml(a.category||'')}
     <label>Art. Nr. Händler <span style="text-transform:none;letter-spacing:0;">(optional)</span></label>
     <input type="text" id="f-vendor" value="${escapeHtml(a.vendorArticleNumber||'')}" placeholder="z. B. 123456-A">
+    <label>Preis (CHF) <span style="text-transform:none;letter-spacing:0;">(optional)</span></label>
+    <input type="number" id="f-price" value="${a.price || ''}" placeholder="z. B. 12.50" step="0.01" min="0">
     <label>Standort</label>
     <input type="text" id="f-loc" value="${escapeHtml(a.location||'')}">
     <label>Bestand</label>
@@ -1984,6 +1992,7 @@ function openEditArticleSheet(id){
         name,
         category: getCategoryValue(sheet) || 'Sonstiges',
         vendorArticleNumber: sheet.querySelector('#f-vendor').value.trim(),
+        price: parseFloat(sheet.querySelector('#f-price').value) || 0,
         location: sheet.querySelector('#f-loc').value.trim(),
         stock: parseInt(sheet.querySelector('#f-stock').value)||0,
         minStock: parseInt(sheet.querySelector('#f-min').value)||0
