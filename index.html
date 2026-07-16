@@ -1117,7 +1117,7 @@ function renderWishlist(){
   const rowHtml = (w) => {
     return `
     <div class="movement-row">
-      <div class="m-icon ${w.done ? 'in' : 'out'}">${w.done ? '✓' : '!'}</div>
+      ${w.imageUrl ? `<img src="${w.imageUrl}" data-wishimg="${w.id}" style="width:42px;height:42px;object-fit:cover;border-radius:6px;flex-shrink:0;cursor:pointer;">` : `<div class="m-icon ${w.done ? 'in' : 'out'}">${w.done ? '✓' : '!'}</div>`}
       <div class="m-info">
         <div class="m-name">${escapeHtml(w.text)}${w.qty ? ' <span class="role-badge" style="border-color:var(--border);color:var(--text-muted);">' + escapeHtml(String(w.qty)) + '</span>' : ''}</div>
         <div class="m-meta">${escapeHtml(w.requestedBy || '—')} · ${fmtDate(w.createdAt)}${w.done && w.doneAt ? ' · erledigt ' + fmtDate(w.doneAt) : ''}</div>
@@ -1166,6 +1166,16 @@ function renderWishlist(){
       }catch(e){ toast('Löschen fehlgeschlagen'); console.error(e); }
     };
   });
+  main.querySelectorAll('[data-wishimg]').forEach(img=>{
+    img.onclick = ()=>{
+      const w = wishlist.find(x => x.id === img.dataset.wishimg);
+      if(!w || !w.imageUrl) return;
+      buildSheet(`
+        <div class="sheet-head"><h3>${escapeHtml(w.text)}</h3><button class="x" data-close>×</button></div>
+        <img src="${w.imageUrl}" style="width:100%;border-radius:10px;">
+      `);
+    };
+  });
 
   $('#fabAdd').onclick = openAddWishSheet;
 }
@@ -1180,11 +1190,22 @@ function openAddWishSheet(){
     <input type="text" id="w-text" placeholder="z. B. Schrauben M10x60">
     <label>Menge <span style="text-transform:none;letter-spacing:0;">(optional)</span></label>
     <input type="text" id="w-qty" placeholder="z. B. 50 Stück">
+    <label>Bild <span style="text-transform:none;letter-spacing:0;">(optional)</span></label>
+    <div class="btn-row" style="margin-top:0;">
+      <button type="button" class="btn btn-secondary btn-block" id="btnCamera">📷 Foto aufnehmen</button>
+      <button type="button" class="btn btn-secondary btn-block" id="btnGallery">Aus Galerie</button>
+    </div>
+    <input type="file" id="f-image-camera" accept="image/*" capture="environment" style="display:none;">
+    <input type="file" id="f-image" accept="image/*" style="display:none;">
+    <div id="f-image-preview"></div>
     <div class="btn-row">
       <button class="btn btn-secondary btn-block" data-close>Abbrechen</button>
       <button class="btn btn-primary btn-block" id="w-save">Hinzufügen</button>
     </div>
   `);
+  bindImagePreview(sheet);
+  sheet.querySelector('#btnCamera').onclick = ()=> sheet.querySelector('#f-image-camera').click();
+  sheet.querySelector('#btnGallery').onclick = ()=> sheet.querySelector('#f-image').click();
   sheet.querySelector('#w-save').onclick = async ()=>{
     const btn = sheet.querySelector('#w-save');
     const text = sheet.querySelector('#w-text').value.trim();
@@ -1192,13 +1213,19 @@ function openAddWishSheet(){
     const qty = sheet.querySelector('#w-qty').value.trim();
     btn.disabled = true; btn.textContent = 'Speichere…';
     try{
-      await addDoc(collection(db, 'requests'), {
+      const data = {
         text, qty,
         requestedBy: authEmailToUsername(currentUserEmail),
         requestedByUid: currentUid,
         createdAt: Date.now(),
         done: false
-      });
+      };
+      const imageFile = getSelectedImageFile(sheet);
+      if(imageFile){
+        btn.textContent = 'Lade Bild hoch…';
+        data.imageUrl = await resizeImageToDataUrl(imageFile);
+      }
+      await addDoc(collection(db, 'requests'), data);
       closeSheet();
       toast('Bestellung hinzugefügt');
     }catch(e){
