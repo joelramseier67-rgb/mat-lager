@@ -2372,7 +2372,7 @@ function openArticleDetail(id, justCreated){
       <div><div class="dlabel">Art. Nr. Händler</div><div class="dval">${escapeHtml(a.vendorArticleNumber||'—')}</div></div>
       <div><div class="dlabel">Preis</div><div class="dval">${a.price ? 'CHF ' + a.price.toFixed(2) : '—'}</div></div>
     </div>
-    ${(a.category||'').toLowerCase() === 'beschläge' ? `<button class="btn btn-secondary btn-block" id="vendorSiteBtn" style="margin-bottom:14px;">Beschläge bei Peterhans ansehen</button>` : ''}
+
     <label style="text-align:center;">Buchung</label>
     <div class="qty-stepper">
       <button data-step="-1">−</button>
@@ -2464,12 +2464,6 @@ function openArticleDetail(id, justCreated){
       if(!holder || !url) return; // Sheet evtl. inzwischen geschlossen
       holder.innerHTML = `<img src="${url}" style="width:100%;max-height:220px;object-fit:cover;border-radius:10px;margin-bottom:12px;">`;
     });
-  }
-  const vendorBtn = sheet.querySelector('#vendorSiteBtn');
-  if(vendorBtn){
-    vendorBtn.onclick = ()=>{
-      window.open('https://www.peterhans-hwz.ch/?srv=sortiment&tenId=55', '_blank');
-    };
   }
 
   try{
